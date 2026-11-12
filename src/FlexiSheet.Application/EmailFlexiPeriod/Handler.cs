@@ -1,4 +1,5 @@
 using FlexiSheet.Application.Abstractions;
+using FlexiSheet.Domain;
 using FlexiSheet.Application.Sharing;
 
 namespace FlexiSheet.Application.EmailFlexiPeriod;
@@ -11,9 +12,10 @@ public sealed class Handler(IWorkspaceRepository repository, IWorkspaceFileCodec
     public async Task HandleAsync(Request request)
     {
         var workspace = await repository.LoadAsync();
-        var export = CompletedPeriodFile.Create(workspace, request.PeriodId,
-            DateOnly.FromDateTime(clock.GetLocalNow().DateTime), codec);
+        var export = PeriodFile.Create(workspace, request.PeriodId, codec);
         var period = export.Period;
+        if (period.EndDate >= DateOnly.FromDateTime(clock.GetLocalNow().DateTime))
+            throw new RuleViolationException("A flexi period can only be shared after its end date has passed.");
         var subject = FormattableString.Invariant($"Flexi sheet for period starting {period.StartDate:yyyy-MM-dd}");
         var body = FormattableString.Invariant($"Flexi period {period.StartDate:yyyy-MM-dd} to {period.EndDate:yyyy-MM-dd}") +
             $"\r\nWorked: {DurationFormatter.Format(period.TotalWorkedTime)}" +
