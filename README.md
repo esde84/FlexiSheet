@@ -1,14 +1,16 @@
 # FlexiSheet
 A project to learn how to use CoPilot to create an interactive web app for recording flexi
 
-## First slice: plan a flexi period
+## Record flexi time
 
 The standalone .NET 10 LTS Blazor WebAssembly app now supports:
 
 - Configuring expected working time for each of the 28 days of a normal four-week period.
 - Starting a non-overlapping 28-day period on a Monday, copying the saved working pattern.
 - Adjusting each period's expected daily time without changing the normal pattern or other periods.
-- Entering and updating positive or negative carry-over manually, without a business cap.
+- Recording, editing and deleting work sessions, rejecting overlaps while allowing adjacent sessions.
+- Derived daily, Monday-to-Sunday weekly and four-week totals and balances.
+- Copying the immediately preceding period's balance as a fixed carry-over snapshot, or entering a manual override without a business cap.
 - Keeping versioned JSON in browser `localStorage` and requesting persistent storage where supported.
 - Purging periods on app startup when their end date is strictly more than two calendar years ago.
 
@@ -17,13 +19,23 @@ Daily expected time is between `0:00` and `24:00`, in whole minutes. The initial
 all zeroes: no contracted hours are assumed. Saving a new normal pattern affects only periods
 created afterwards.
 
-This is a **period-planning slice**, not a complete time-recording tool yet. Session recording,
-worked-time totals and balances, automatic carry-over, backup/restore, individual downloads
-and email are not implemented. Carry-over must therefore be entered manually for now.
+Session times use a 24-hour clock, in whole minutes. Sessions do not cross midnight:
+finish at `24:00` on the first day and create a new session starting at `00:00` on the next.
+There is no arbitrary limit on sessions per day.
+
+The period balance includes expected time for all 28 days, not only days with recorded work.
+When creating a period, the previous period's current balance can be copied automatically,
+but subsequent changes to earlier work, expectations or carry-over **never cascade** into
+already-created later periods. Edit a later period's carry-over explicitly to correct it.
+If there is no immediately preceding period, enter your starting balance manually.
+
+Backup/restore, individual downloads and email are not implemented yet.
 **Do not rely on this release as your only record:** browser data can be cleared or evicted,
 and backup/restore is not available yet. Invalid or unsupported saved data blocks editing
 without overwriting it; storage failures are shown rather than reported as successful saves.
 Stale edits from another tab are rejected and require a page reload.
+Schema version 1 planning data remains readable and is saved as version 2, including sessions,
+on its next update. Invalid saved records are preserved rather than silently discarded.
 
 ## Run locally
 
@@ -54,6 +66,8 @@ npm run test:browser
 The browser tests exercise the **published**, trimmed app at `/FlexiSheet/`, including
 direct settings navigation, persistence across reloads, independent period adjustments,
 validation, corrupt storage, failed writes and stale tabs.
+Recording tests also cover adjacent/overlapping sessions, edits and confirmed deletion,
+midnight boundaries, fixed automatic carry-over with manual overrides, and schema migration.
 
 `scripts/prepare-pages.mjs` sets the published base path (default `/FlexiSheet/`), adds
 `404.html` for client-side routing and `.nojekyll` for framework assets. Set `BASE_PATH`
@@ -63,22 +77,18 @@ requests and deploys passing `main` builds to GitHub Pages. A repository adminis
 must select **GitHub Actions** as the Pages source before the first deployment.
 No deployment has been performed by adding this workflow.
 
-## Structure and next decisions
+## Structure and remaining work
 
-- `src/FlexiSheet.Domain`: framework-free working-pattern and period rules using `DateOnly` and `TimeSpan`.
-- `src/FlexiSheet.Application`: use-case folders for loading/purging, saving the working pattern, starting and adjusting periods; repository and clock abstractions.
+- `src/FlexiSheet.Domain`: framework-free session, day, week, working-pattern and period rules using `DateOnly`, `TimeOnly` and `TimeSpan`.
+- `src/FlexiSheet.Application`: use-case folders for loading/purging, saving the working pattern, starting/adjusting periods, and recording/deleting sessions; repository and clock abstractions.
 - `src/FlexiSheet.Infrastructure`: validated, source-generated JSON serialization and browser storage.
 - `src/FlexiSheet.Web`: form pages, accessible GOV.UK styles and dependency-injection composition.
 - `tests`: focused C# tests and published-app Playwright tests.
 
-The next recording slice needs an answer on **overlapping work sessions within the same day**:
-should they be rejected, or allowed (and, if allowed, counted twice or as a union)?
-Sessions will not cross midnight; continued work starts a new session at midnight on the next day.
-An end-of-day boundary must therefore be represented as `24:00` on the first day, not
-as an earlier end time. Another decision for automatic carry-over is whether changing an
-earlier period should recalculate already-created later periods whose carry-over was
-not manually overridden, or leave their starting balances fixed. Neither choice is
-silently implemented in this slice.
+The clarified recording and carry-over rules are recorded in [ADR-0010](docs/adr/0010-record-sessions-and-snapshot-carry-over.md).
+The remaining planned slices are validated backup/restore (with replacement confirmation
+and retention after import), and completed-period download/email. Email must download
+the file first and ask the user to attach it manually; `mailto:` cannot attach a file.
 
 ## Decisions
 

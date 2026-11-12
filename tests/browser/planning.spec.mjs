@@ -1,22 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { savePattern } from "./helpers.mjs";
 
 const key = "flexisheet.workspace.v1";
 
 test.beforeEach(async ({ page }) => {
     await page.clock.setFixedTime(new Date("2026-11-12T12:00:00Z"));
 });
-
-async function savePattern(page) {
-    await page.goto("settings");
-    await expect(page.getByRole("heading", { name: "Normal four-week working pattern" })).toBeVisible();
-    for (let week = 0; week < 4; week++) {
-        for (let day = 0; day < 5; day++) {
-            await page.locator(`#pattern-${week * 7 + day}`).fill("7:30");
-        }
-    }
-    await page.getByRole("button", { name: "Save working pattern" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Your normal working pattern has been saved" })).toBeVisible();
-}
 
 test("configure, start, adjust and reload a period under the GitHub Pages subpath", async ({ page }) => {
     const errors = [];
@@ -37,9 +26,13 @@ test("configure, start, adjust and reload a period under the GitHub Pages subpat
     await expect(page.getByText("Expected: 145:30 | Carry-over: 120:30", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "2 Nov 2026 to 29 Nov 2026" }).click();
     await expect(page.locator("#period-0")).toHaveValue("3:00");
-    await page.screenshot({ path: "artifacts/screenshots/period-planning.png", fullPage: true });
     await page.getByRole("link", { name: "Working pattern", exact: true }).click();
     await expect(page.locator("#pattern-0")).toHaveValue("7:30");
+    const skip = page.getByRole("link", { name: "Skip to main content" });
+    await skip.focus();
+    await skip.press("Enter");
+    await expect(page).toHaveURL(/\/FlexiSheet\/settings$/);
+    await expect(page.locator("main")).toBeFocused();
     const css = await page.evaluate(async () => await (await fetch("css/app.css")).text());
     expect(css).not.toMatch(/GDS Transport|@font-face|url\(/i);
     expect(errors).toEqual([]);

@@ -3,8 +3,10 @@
 @inject FlexiSheet.Application.LoadWorkspace.Handler LoadWorkspace
 @inject IJSRuntime Javascript
 @inject ILogger<MainLayout> Logger
+@inject NavigationManager Navigation
 
-<a class="govuk-skip-link" href="#main-content">Skip to main content</a>
+<a class="govuk-skip-link" href="@($"{Navigation.Uri.Split('#')[0]}#main-content")"
+   @onclick="FocusMainAsync" @onclick:preventDefault>Skip to main content</a>
 <header class="service-header">
     <div class="govuk-width-container">
         <a class="service-name" href="">FlexiSheet</a>
@@ -15,7 +17,7 @@
     </div>
 </header>
 <div class="govuk-width-container">
-    <main class="govuk-main-wrapper" id="main-content">
+    <main class="govuk-main-wrapper" id="main-content" tabindex="-1" @ref="mainContent">
         @if (loading)
         {
             <p class="govuk-body" role="status">Loading your flexi periods...</p>
@@ -45,6 +47,9 @@
 @code {
     private bool loading = true;
     private string? persistenceNotice;
+    private ElementReference mainContent;
+
+    private async Task FocusMainAsync() => await mainContent.FocusAsync();
 
     protected override async Task OnInitializedAsync()
     {

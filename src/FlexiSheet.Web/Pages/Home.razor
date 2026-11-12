@@ -6,8 +6,8 @@
 
 <PageTitle>Flexi periods - FlexiSheet</PageTitle>
 <h1 class="govuk-heading-xl">Flexi periods</h1>
-<p class="govuk-body">Set up four-week periods and adjust the hours you expect to work each day.</p>
-<p class="govuk-inset-text">This first release plans expected time only. Recording work, calculated balances, automatic carry-over and downloads are not available yet.</p>
+<p class="govuk-body">Record your work and compare it with the hours you expect to work each day.</p>
+<p class="govuk-inset-text">Carry-over is copied when a period is created and stays fixed unless you edit it. Backup, restore and downloads are not available yet.</p>
 <Messages Error="@State.Error" Success="@State.Success" />
 
 @if (State.Current!.WorkingPattern is null)
@@ -24,11 +24,26 @@ else
                 <p class="govuk-hint" id="start-hint">The period will contain 28 days. It must not overlap an existing period.</p>
                 <input class="govuk-input date-input" type="date" id="start-date" @bind="startDate" aria-describedby="start-hint" required />
             </div>
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="carry-over">Carry-over</label>
-                <p class="govuk-hint" id="carry-hint">Enter hours:minutes, for example 7:30, -2:15 or 0:00. Enter this manually until recorded balances are available. No carry-over cap is applied.</p>
-                <input class="govuk-input govuk-input--width-10" id="carry-over" @bind="carryOver" aria-describedby="carry-hint" required />
-            </div>
+            @if (PreviousPeriod is { } previous)
+            {
+                <div class="govuk-form-group">
+                    <div class="govuk-checkboxes">
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" type="checkbox" id="calculate-carry" @bind="useCalculatedCarryOver" aria-describedby="calculated-hint" />
+                            <label class="govuk-label govuk-checkboxes__label" for="calculate-carry">Use the previous period's balance</label>
+                        </div>
+                    </div>
+                    <p class="govuk-hint" id="calculated-hint">Current previous balance: @DurationText.Format(previous.Balance). This copies the balance based on work recorded so far, not a forecast. Later edits to the previous period will not change this carry-over.</p>
+                </div>
+            }
+            @if (PreviousPeriod is null || !useCalculatedCarryOver)
+            {
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="carry-over">Carry-over</label>
+                    <p class="govuk-hint" id="carry-hint">Enter hours:minutes, for example 7:30, -2:15 or 0:00. No carry-over cap is applied. Without an immediately preceding period, enter your starting balance manually.</p>
+                    <input class="govuk-input govuk-input--width-10" id="carry-over" @bind="carryOver" aria-describedby="carry-hint" required />
+                </div>
+            }
             <button class="govuk-button" disabled="@busy" type="submit">Start period</button>
         </form>
     </section>
@@ -50,14 +65,16 @@ else
                         @period.StartDate.ToString("d MMM yyyy") to @period.EndDate.ToString("d MMM yyyy")
                     </button>
                     <p class="govuk-body-s">Expected: @DurationText.Format(period.TotalExpectedTime) | Carry-over: @DurationText.Format(period.CarryOver)</p>
+                    <p class="govuk-body-s">Worked: @DurationText.Format(period.TotalWorkedTime) | Balance: @DurationText.Format(period.Balance)</p>
                 </li>
             }
         </ul>
     }
 </section>
 
-@if (selectedId is not null)
+@if (SelectedPeriod is { } selectedPeriod)
 {
+    <PeriodWork @key="selectedPeriod.Id" Period="selectedPeriod" OnChanged="RefreshWork" />
     <section aria-labelledby="adjust-heading">
         <h2 class="govuk-heading-l" id="adjust-heading">Adjust this period</h2>
         <p class="govuk-hint" id="period-hint">Enter hours:minutes for each day, from 0:00 to 24:00. These changes do not alter your normal working pattern.</p>
@@ -65,7 +82,7 @@ else
             <ExpectedTimeFields Values="expectedTime" IdPrefix="period" StartDate="selectedStart" />
             <div class="govuk-form-group">
                 <label class="govuk-label" for="adjust-carry">Carry-over for this period</label>
-                <p class="govuk-hint" id="adjust-carry-hint">Hours:minutes; use a minus sign for a negative balance.</p>
+                <p class="govuk-hint" id="adjust-carry-hint">Hours:minutes; use a minus sign for a negative balance. This overrides the starting balance for this period only, without changing later periods.</p>
                 <input class="govuk-input govuk-input--width-10" id="adjust-carry" @bind="adjustCarryOver" aria-describedby="adjust-carry-hint" required />
             </div>
             <button class="govuk-button" disabled="@busy" type="submit">Save period changes</button>
@@ -76,11 +93,17 @@ else
 @code {
     private DateTime startDate;
     private string carryOver = "0:00";
+    private bool useCalculatedCarryOver = true;
     private bool busy;
     private Guid? selectedId;
     private DateOnly selectedStart;
     private string[] expectedTime = [];
     private string adjustCarryOver = "0:00";
+    private FlexiPeriod? PreviousPeriod => State.Current!.Periods.SingleOrDefault(period =>
+        period.EndDate.DayNumber == DateOnly.FromDateTime(startDate).DayNumber - 1);
+    private FlexiPeriod? SelectedPeriod => State.Current!.Periods.SingleOrDefault(period => period.Id == selectedId);
+
+    private void RefreshWork() => StateHasChanged();
 
     protected override void OnInitialized()
     {
@@ -95,7 +118,8 @@ else
         busy = true;
         var oldIds = State.Current!.Periods.Select(period => period.Id).ToHashSet();
         var saved = await State.ExecuteAsync(() => StartPeriod.HandleAsync(new(
-            DateOnly.FromDateTime(startDate), DurationText.Parse(carryOver, allowNegative: true))),
+            DateOnly.FromDateTime(startDate), PreviousPeriod is not null && useCalculatedCarryOver
+                ? null : DurationText.Parse(carryOver, allowNegative: true))),
             "Your flexi period has been saved in this browser.");
         if (saved)
             Select(State.Current!.Periods.Single(period => !oldIds.Contains(period.Id)), clearMessages: false);

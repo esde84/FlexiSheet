@@ -18,7 +18,7 @@ public sealed class BrowserStorageTests
         var json = WorkspaceJson.Serialize(original);
         var restored = WorkspaceJson.Deserialize(json);
 
-        Assert.Contains("\"schemaVersion\":1", json);
+        Assert.Contains("\"schemaVersion\":2", json);
         Assert.Equal(original.WorkingPattern!.ExpectedTime, restored.WorkingPattern!.ExpectedTime);
         var restoredPeriod = Assert.Single(restored.Periods);
         Assert.Equal(period.Id, restoredPeriod.Id);
@@ -31,7 +31,8 @@ public sealed class BrowserStorageTests
     [InlineData("null")]
     [InlineData("{")]
     [InlineData("{}")]
-    [InlineData("{\"schemaVersion\":2,\"workingPattern\":null,\"periods\":[]}")]
+    [InlineData("{\"schemaVersion\":3,\"workingPattern\":null,\"periods\":[]}")]
+    [InlineData("{\"schemaVersion\":\"2\",\"workingPattern\":null,\"periods\":[]}")]
     [InlineData("{\"schemaVersion\":1,\"workingPattern\":null,\"periods\":null}")]
     [InlineData("{\"schemaVersion\":1,\"workingPattern\":null,\"periods\":[null]}")]
     [InlineData("{\"schemaVersion\":1,\"workingPattern\":[\"00:00:00\"],\"periods\":[]}")]
@@ -45,6 +46,7 @@ public sealed class BrowserStorageTests
     [InlineData("startDate")]
     [InlineData("expectedTime")]
     [InlineData("carryOver")]
+    [InlineData("sessions")]
     public void MissingPeriodFieldsAreNotSilentlyDefaulted(string field)
     {
         var json = JsonNode.Parse(WorkspaceJson.Serialize(Example()))!;
@@ -64,6 +66,59 @@ public sealed class BrowserStorageTests
         json["periods"]!.AsArray().RemoveAt(1);
         json["periods"]![0]!["startDate"] = "2026-11-03";
         Assert.Throws<WorkspaceStorageException>(() => WorkspaceJson.Deserialize(json.ToJsonString()));
+    }
+
+    [Fact]
+    public void PlanningSchemaMigratesWithoutLosingExpectedTimeOrCarryOver()
+    {
+        var original = Example();
+        var json = JsonNode.Parse(WorkspaceJson.Serialize(original))!;
+        json["schemaVersion"] = 1;
+        json["periods"]![0]!.AsObject().Remove("sessions");
+
+        var restored = WorkspaceJson.Deserialize(json.ToJsonString());
+
+        var period = Assert.Single(restored.Periods);
+        Assert.Empty(period.Sessions);
+        Assert.Equal(original.Periods[0].ExpectedTime, period.ExpectedTime);
+        Assert.Equal(original.Periods[0].CarryOver, period.CarryOver);
+        Assert.Contains("\"schemaVersion\":2", WorkspaceJson.Serialize(restored));
+    }
+
+    [Fact]
+    public void SessionsRoundTripIncludingEndOfDayBoundaryAndInvalidOverlapIsRejected()
+    {
+        var day = new DateOnly(2026, 11, 2);
+        var session = new WorkSession(Guid.NewGuid(), day, new TimeOnly(23, 0), TimeOnly.MinValue, true);
+        var period = new FlexiPeriod(Guid.NewGuid(), day, PeriodPlanningTests.NormalPattern(), TimeSpan.Zero, [session]);
+        var json = WorkspaceJson.Serialize(new Workspace(null, [period]));
+        var restored = Assert.Single(WorkspaceJson.Deserialize(json).Periods).Sessions.Single();
+        Assert.Equal(session.Date, restored.Date);
+        Assert.Equal(session.StartTime, restored.StartTime);
+        Assert.True(restored.EndsAtMidnight);
+        Assert.Equal(TimeSpan.FromHours(1), restored.Duration);
+
+        var node = JsonNode.Parse(json)!;
+        var duplicate = node["periods"]![0]!["sessions"]![0]!.DeepClone();
+        duplicate["id"] = Guid.NewGuid().ToString();
+        node["periods"]![0]!["sessions"]!.AsArray().Add(duplicate);
+        Assert.Throws<WorkspaceStorageException>(() => WorkspaceJson.Deserialize(node.ToJsonString()));
+    }
+
+    [Theory]
+    [InlineData("id")]
+    [InlineData("date")]
+    [InlineData("startTime")]
+    [InlineData("endTime")]
+    [InlineData("endsAtMidnight")]
+    public void IncompleteSessionsCannotBeSilentlyDefaulted(string field)
+    {
+        var day = new DateOnly(2026, 11, 2);
+        var period = new FlexiPeriod(Guid.NewGuid(), day, PeriodPlanningTests.NormalPattern(), TimeSpan.Zero,
+            [new WorkSession(Guid.NewGuid(), day, new TimeOnly(9, 0), new TimeOnly(10, 0))]);
+        var node = JsonNode.Parse(WorkspaceJson.Serialize(new Workspace(null, [period])))!;
+        node["periods"]![0]!["sessions"]![0]!.AsObject().Remove(field);
+        Assert.Throws<WorkspaceStorageException>(() => WorkspaceJson.Deserialize(node.ToJsonString()));
     }
 
     [Fact]

@@ -6,6 +6,7 @@
 @use "govuk-frontend/dist/govuk/core";
 @use "govuk-frontend/dist/govuk/objects";
 @use "govuk-frontend/dist/govuk/components/button";
+@use "govuk-frontend/dist/govuk/components/checkboxes";
 @use "govuk-frontend/dist/govuk/components/error-summary";
 @use "govuk-frontend/dist/govuk/components/fieldset";
 @use "govuk-frontend/dist/govuk/components/input";
@@ -13,6 +14,7 @@
 @use "govuk-frontend/dist/govuk/components/label";
 @use "govuk-frontend/dist/govuk/components/notification-banner";
 @use "govuk-frontend/dist/govuk/components/skip-link";
+@use "govuk-frontend/dist/govuk/components/table";
 @use "govuk-frontend/dist/govuk/utilities";
 
 body { margin: 0; }
@@ -28,6 +30,9 @@ body { margin: 0; }
 .pattern-week { margin-bottom: 20px; }
 .date-input { max-width: 220px; }
 .period-list li { border-bottom: 1px solid #b1b4b6; padding: 12px 0; }
+.session-list li { border-bottom: 1px solid #b1b4b6; padding: 12px 0; }
+.session-list .link-button { margin-left: 15px; }
+.table-scroll { overflow-x: auto; }
 .link-button { background: none; border: 0; padding: 0; color: #1d70b8; text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
 .link-button:focus { background: #ffdd00; color: #0b0c0c; outline: 3px solid #ffdd00; }
 .loading-message { margin: 30px; }

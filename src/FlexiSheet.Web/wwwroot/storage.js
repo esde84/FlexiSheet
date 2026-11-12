@@ -1,5 +1,6 @@
 (() => {
     "use strict";
+    // Keep the original key when the document's schemaVersion changes.
     const key = "flexisheet.workspace.v1";
     window.flexiSheetStorage = {
         read: () => localStorage.getItem(key),

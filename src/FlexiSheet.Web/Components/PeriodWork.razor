@@ -1,0 +1,154 @@
+@inject WorkspaceState State
+@inject FlexiSheet.Application.RecordSession.Handler RecordSession
+@inject FlexiSheet.Application.DeleteSession.Handler DeleteSession
+
+<section aria-labelledby="work-heading">
+    <h2 class="govuk-heading-l" id="work-heading">Work sessions and balances</h2>
+    <p class="govuk-body">Period: @Period.StartDate.ToString("d MMM yyyy") to @Period.EndDate.ToString("d MMM yyyy")</p>
+    <p class="govuk-body" data-testid="period-balance">Worked @DurationText.Format(Period.TotalWorkedTime) minus expected @DurationText.Format(Period.TotalExpectedTime), plus carry-over @DurationText.Format(Period.CarryOver): balance <strong>@DurationText.Format(Period.Balance)</strong>.</p>
+    <p class="govuk-hint">The balance uses expected time for the whole period and only the work recorded so far. Weekly and daily differences below do not include carry-over.</p>
+    <div class="table-scroll">
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--m">Weekly totals</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th class="govuk-table__header" scope="col">Week starting</th>
+                    <th class="govuk-table__header" scope="col">Worked</th>
+                    <th class="govuk-table__header" scope="col">Expected</th>
+                    <th class="govuk-table__header" scope="col">Difference</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var week in Period.Weeks)
+                {
+                    <tr class="govuk-table__row">
+                        <th class="govuk-table__header" scope="row">@week.StartDate.ToString("d MMM yyyy")</th>
+                        <td class="govuk-table__cell">@DurationText.Format(week.WorkedTime)</td>
+                        <td class="govuk-table__cell">@DurationText.Format(week.ExpectedTime)</td>
+                        <td class="govuk-table__cell">@DurationText.Format(week.Balance)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+        <div class="govuk-form-group">
+            <label class="govuk-label" for="work-date">Work date</label>
+            <input class="govuk-input date-input" type="date" id="work-date" @bind="workDate"
+                   min="@Period.StartDate.ToString("yyyy-MM-dd")" max="@Period.EndDate.ToString("yyyy-MM-dd")" required />
+        </div>
+        <p class="govuk-hint" id="session-hint">Use 24-hour times, for example 09:00 and 17:30. Sessions must not overlap. Adjacent sessions are allowed. Finish at 24:00 for midnight, then record continued work as a new session on the next day.</p>
+        <div class="day-fields">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="session-start">Start time</label>
+                <input class="govuk-input govuk-input--width-5" id="session-start" @bind="startTime" aria-describedby="session-hint" required />
+            </div>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="session-end">End time</label>
+                <input class="govuk-input govuk-input--width-5" id="session-end" @bind="endTime" aria-describedby="session-hint" required />
+            </div>
+        </div>
+        <button class="govuk-button" type="submit" disabled="@busy">@(editingId is null ? "Record session" : "Save session changes")</button>
+        @if (editingId is not null)
+        {
+            <button class="govuk-button govuk-button--secondary" type="button" @onclick="CancelEdit" disabled="@busy">Cancel editing</button>
+        }
+    </form>
+
+    @if (SelectedDay is { } day)
+    {
+        <h3 class="govuk-heading-m">Sessions for @day.Date.ToString("d MMM yyyy")</h3>
+        <p class="govuk-body" data-testid="day-balance">Worked: @DurationText.Format(day.WorkedTime) | Expected: @DurationText.Format(day.ExpectedTime) | Difference: @DurationText.Format(day.Balance)</p>
+        @if (day.Sessions.Count == 0)
+        {
+            <p class="govuk-body">No sessions recorded for this day.</p>
+        }
+        else
+        {
+            <ul class="govuk-list session-list">
+                @foreach (var session in day.Sessions)
+                {
+                    <li @key="session.Id">
+                        <span class="govuk-body">@session.StartTime.ToString("HH:mm") to @(session.EndsAtMidnight ? "24:00" : session.EndTime.ToString("HH:mm")) (@DurationText.Format(session.Duration))</span>
+                        <button class="link-button" type="button" @onclick="() => Edit(session)" disabled="@busy">Edit</button>
+                        <button class="link-button" type="button" @onclick="() => pendingDelete = session.Id" disabled="@busy">Delete</button>
+                        @if (pendingDelete == session.Id)
+                        {
+                            <div class="govuk-inset-text">
+                                <p class="govuk-body">Delete this session? Its worked time will be removed. Later periods' carry-over will not change.</p>
+                                <button class="govuk-button govuk-button--warning" type="button" @onclick="() => DeleteAsync(session.Id)" disabled="@busy">Confirm deletion</button>
+                                <button class="govuk-button govuk-button--secondary" type="button" @onclick="() => pendingDelete = null" disabled="@busy">Keep session</button>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public FlexiPeriod Period { get; set; } = null!;
+    [Parameter] public EventCallback OnChanged { get; set; }
+    private DateTime workDate;
+    private string startTime = string.Empty;
+    private string endTime = string.Empty;
+    private Guid? editingId;
+    private Guid? pendingDelete;
+    private bool busy;
+    private FlexiDay? SelectedDay => Period.Days.SingleOrDefault(day => day.Date == DateOnly.FromDateTime(workDate));
+
+    protected override void OnInitialized() => workDate = Period.StartDate.ToDateTime(TimeOnly.MinValue);
+
+    private async Task SaveAsync()
+    {
+        if (busy) return;
+        busy = true;
+        if (await State.ExecuteAsync(SaveDraftAsync, "Your work session has been saved. Later periods' carry-over has not changed."))
+            CancelEdit();
+        await OnChanged.InvokeAsync();
+        busy = false;
+    }
+
+    private Task<FlexiSheet.Application.Workspace> SaveDraftAsync()
+    {
+        var start = DurationText.ParseTime(startTime);
+        var end = DurationText.ParseTime(endTime, allowEndOfDay: true);
+        var atMidnight = end == TimeSpan.FromDays(1);
+        return RecordSession.HandleAsync(new(Period.Id, DateOnly.FromDateTime(workDate),
+            TimeOnly.FromTimeSpan(start), atMidnight ? TimeOnly.MinValue : TimeOnly.FromTimeSpan(end),
+            atMidnight, editingId));
+    }
+
+    private void Edit(WorkSession session)
+    {
+        State.ClearMessages();
+        editingId = session.Id;
+        pendingDelete = null;
+        workDate = session.Date.ToDateTime(TimeOnly.MinValue);
+        startTime = session.StartTime.ToString("HH:mm");
+        endTime = session.EndsAtMidnight ? "24:00" : session.EndTime.ToString("HH:mm");
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        startTime = string.Empty;
+        endTime = string.Empty;
+    }
+
+    private async Task DeleteAsync(Guid sessionId)
+    {
+        if (busy) return;
+        busy = true;
+        if (await State.ExecuteAsync(() => DeleteSession.HandleAsync(new(Period.Id, sessionId)),
+            "The work session has been deleted. Later periods' carry-over has not changed."))
+        {
+            pendingDelete = null;
+            if (editingId == sessionId) CancelEdit();
+        }
+        await OnChanged.InvokeAsync();
+        busy = false;
+    }
+}

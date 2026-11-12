@@ -32,4 +32,14 @@ public static class DurationText
         var ticks = (hours * 60 + minutes) * TimeSpan.TicksPerMinute;
         return new TimeSpan(negative ? -ticks : ticks);
     }
+
+    public static TimeSpan ParseTime(string text, bool allowEndOfDay = false)
+    {
+        var value = Parse(text);
+        if (value > TimeSpan.FromDays(1) || (!allowEndOfDay && value == TimeSpan.FromDays(1)))
+            throw new RuleViolationException(allowEndOfDay
+                ? "Enter an end time from 0:00 to 24:00."
+                : "Enter a start time from 0:00 to 23:59.");
+        return value;
+    }
 }

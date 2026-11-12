@@ -12,7 +12,7 @@ public sealed class Handler(IWorkspaceRepository repository)
         var workspace = await repository.LoadAsync();
         var existing = workspace.Periods.SingleOrDefault(period => period.Id == request.PeriodId)
             ?? throw new RuleViolationException("This flexi period no longer exists. Reload the page.");
-        var replacement = new FlexiPeriod(existing.Id, existing.StartDate, request.ExpectedTime, request.CarryOver);
+        var replacement = new FlexiPeriod(existing.Id, existing.StartDate, request.ExpectedTime, request.CarryOver, existing.Sessions);
         var updated = workspace with
         {
             Periods = workspace.Periods.Select(period => period.Id == existing.Id ? replacement : period).ToArray()
