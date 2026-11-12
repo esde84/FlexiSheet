@@ -6,13 +6,12 @@ namespace FlexiSheet.Application.DownloadFlexiPeriod;
 public sealed record Request(Guid PeriodId);
 
 public sealed class Handler(IWorkspaceRepository repository, IWorkspaceFileCodec codec,
-    IFileDelivery delivery, TimeProvider clock)
+    IFileDelivery delivery)
 {
     public async Task HandleAsync(Request request)
     {
         var workspace = await repository.LoadAsync();
-        var export = CompletedPeriodFile.Create(workspace, request.PeriodId,
-            DateOnly.FromDateTime(clock.GetLocalNow().DateTime), codec);
+        var export = PeriodFile.Create(workspace, request.PeriodId, codec);
         await delivery.DownloadAsync(export.File);
     }
 }

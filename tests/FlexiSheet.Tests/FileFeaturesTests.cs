@@ -93,7 +93,7 @@ public sealed class FileFeaturesTests
         var source = ImportSource();
         var repository = new MemoryRepository(source);
         var delivery = new Delivery();
-        await new DownloadHandler(repository, Codec, delivery, Clock).HandleAsync(new DownloadRequest(source.Periods[2].Id));
+        await new DownloadHandler(repository, Codec, delivery).HandleAsync(new DownloadRequest(source.Periods[2].Id));
 
         var file = Assert.Single(delivery.Files);
         Assert.Equal("flexisheet-period-2026-10-05.json", file.FileName);
@@ -106,34 +106,39 @@ public sealed class FileFeaturesTests
     }
 
     [Fact]
-    public async Task PeriodEndingTodayCannotBeSharedUntilTheNextLocalDay()
+    public async Task PeriodCanBeDownloadedOnItsEndDateButCannotBeEmailedUntilTheNextLocalDay()
     {
         var period = Completed();
         var repository = new MemoryRepository(new Workspace(null, [period]));
         var delivery = new Delivery();
         var today = new FixedClock(period.EndDate);
-        await Assert.ThrowsAsync<RuleViolationException>(() =>
-            new DownloadHandler(repository, Codec, delivery, today).HandleAsync(new DownloadRequest(period.Id)));
+        await new DownloadHandler(repository, Codec, delivery).HandleAsync(new DownloadRequest(period.Id));
         await Assert.ThrowsAsync<RuleViolationException>(() =>
             new EmailHandler(repository, Codec, delivery, today).HandleAsync(new EmailRequest(period.Id)));
-        Assert.Empty(delivery.Events);
+        Assert.Equal(["download"], delivery.Events);
 
-        await new DownloadHandler(repository, Codec, delivery, new FixedClock(period.EndDate.AddDays(1)))
-            .HandleAsync(new DownloadRequest(period.Id));
-        Assert.Single(delivery.Files);
+        await new EmailHandler(repository, Codec, delivery, new FixedClock(period.EndDate.AddDays(1)))
+            .HandleAsync(new EmailRequest(period.Id));
+        Assert.Equal(["download", "download", "email"], delivery.Events);
+        Assert.Equal(2, delivery.Files.Count);
     }
 
     [Fact]
-    public async Task ActiveAndMissingPeriodsCannotBeShared()
+    public async Task ActivePeriodsCanBeDownloadedButNotEmailedAndMissingPeriodsCannotBeShared()
     {
         var active = PeriodPlanningTests.Period(new DateOnly(2026, 11, 2));
         var repository = new MemoryRepository(new Workspace(null, [active]));
         var delivery = new Delivery();
+        await new DownloadHandler(repository, Codec, delivery).HandleAsync(new DownloadRequest(active.Id));
         await Assert.ThrowsAsync<RuleViolationException>(() =>
-            new DownloadHandler(repository, Codec, delivery, Clock).HandleAsync(new DownloadRequest(active.Id)));
+            new EmailHandler(repository, Codec, delivery, Clock).HandleAsync(new EmailRequest(active.Id)));
         await Assert.ThrowsAsync<RuleViolationException>(() =>
             new EmailHandler(repository, Codec, delivery, Clock).HandleAsync(new EmailRequest(Guid.NewGuid())));
-        Assert.Empty(delivery.Events);
+        await Assert.ThrowsAsync<RuleViolationException>(() =>
+            new DownloadHandler(repository, Codec, delivery).HandleAsync(new DownloadRequest(Guid.NewGuid())));
+        Assert.Equal(["download"], delivery.Events);
+        var exported = Codec.Deserialize(Assert.Single(delivery.Files).Json);
+        Assert.Equal(active.Id, Assert.Single(exported.Periods).Id);
     }
 
     [Fact]
