@@ -12,12 +12,15 @@ public sealed class WorkspaceState(ILogger<WorkspaceState> logger)
 
     public void ClearMessages() => (Error, Success) = (null, null);
 
-    public async Task<bool> ExecuteAsync(Func<Task<Workspace>> action, string? success = null)
+    public Task<bool> ExecuteAsync(Func<Task<Workspace>> action, string? success = null) =>
+        PerformAsync(async () => { Current = await action(); }, success);
+
+    public async Task<bool> PerformAsync(Func<Task> action, string? success = null)
     {
         ClearMessages();
         try
         {
-            Current = await action();
+            await action();
             Success = success;
             return true;
         }

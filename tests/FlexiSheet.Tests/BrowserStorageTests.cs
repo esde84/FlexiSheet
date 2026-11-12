@@ -132,6 +132,18 @@ public sealed class BrowserStorageTests
     }
 
     [Fact]
+    public async Task ConfirmedRestoreCanRecoverUnreadableStorageWithoutDiscardingItDuringLoad()
+    {
+        var js = new StorageRuntime { Json = "invalid" };
+        var repository = new BrowserWorkspaceRepository(js);
+        await Assert.ThrowsAsync<WorkspaceStorageException>(() => repository.LoadAsync());
+        var handler = new FlexiSheet.Application.RestoreBackup.Handler(repository, new WorkspaceFileCodec(), TimeProvider.System);
+        await handler.HandleAsync(new(WorkspaceJson.Serialize(Workspace.Empty), Confirmed: true));
+        Assert.Empty(WorkspaceJson.Deserialize(js.Json!).Periods);
+        Assert.Equal(1, js.Writes);
+    }
+
+    [Fact]
     public async Task RepositorySavesAndReloadsOnlyAfterSuccessfulStorageWrite()
     {
         var js = new StorageRuntime();

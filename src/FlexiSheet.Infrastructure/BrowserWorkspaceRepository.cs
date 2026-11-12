@@ -17,10 +17,10 @@ public sealed class BrowserWorkspaceRepository(IJSRuntime javascript) : IWorkspa
             if (loaded && json != loadedJson)
                 throw new WorkspaceStorageException(
                     "Another tab changed your data. Reload this page before trying again. Your changes were not saved.");
-            var workspace = json is null ? Workspace.Empty : WorkspaceJson.Deserialize(json);
+            // Confirmed recovery must still compare against the original revision if decoding fails.
             loadedJson = json;
             loaded = true;
-            return workspace;
+            return json is null ? Workspace.Empty : WorkspaceJson.Deserialize(json);
         }
         catch (JSException exception)
         {
@@ -32,7 +32,7 @@ public sealed class BrowserWorkspaceRepository(IJSRuntime javascript) : IWorkspa
     public async Task SaveAsync(Workspace workspace)
     {
         if (!loaded)
-            throw new InvalidOperationException("Load the workspace before saving it.");
+            throw new WorkspaceStorageException("Browser storage has not been opened. Retry loading the app before saving or restoring. Nothing has been changed.");
 
         var json = WorkspaceJson.Serialize(workspace);
         try

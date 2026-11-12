@@ -10,12 +10,19 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IWorkspaceRepository, BrowserWorkspaceRepository>();
+builder.Services.AddScoped<IWorkspaceFileCodec, WorkspaceFileCodec>();
+builder.Services.AddScoped<IFileDelivery, BrowserFileDelivery>();
 builder.Services.AddScoped<FlexiSheet.Application.LoadWorkspace.Handler>();
 builder.Services.AddScoped<FlexiSheet.Application.SaveWorkingPattern.Handler>();
 builder.Services.AddScoped<FlexiSheet.Application.StartFlexiPeriod.Handler>();
 builder.Services.AddScoped<FlexiSheet.Application.AdjustFlexiPeriod.Handler>();
 builder.Services.AddScoped<FlexiSheet.Application.RecordSession.Handler>();
 builder.Services.AddScoped<FlexiSheet.Application.DeleteSession.Handler>();
+builder.Services.AddScoped<FlexiSheet.Application.ExportBackup.Handler>();
+builder.Services.AddScoped<FlexiSheet.Application.PrepareRestore.Handler>();
+builder.Services.AddScoped<FlexiSheet.Application.RestoreBackup.Handler>();
+builder.Services.AddScoped<FlexiSheet.Application.DownloadFlexiPeriod.Handler>();
+builder.Services.AddScoped<FlexiSheet.Application.EmailFlexiPeriod.Handler>();
 builder.Services.AddScoped<WorkspaceState>();
 
 await builder.Build().RunAsync();

@@ -5,11 +5,7 @@ namespace FlexiSheet.Web;
 
 public static class DurationText
 {
-    public static string Format(TimeSpan value)
-    {
-        var minutes = value.Ticks / TimeSpan.TicksPerMinute;
-        return $"{(minutes < 0 ? "-" : "")}{Math.Abs(minutes) / 60}:{Math.Abs(minutes) % 60:00}";
-    }
+    public static string Format(TimeSpan value) => FlexiSheet.Application.DurationFormatter.Format(value);
 
     public static TimeSpan Parse(string text, bool allowNegative = false)
     {

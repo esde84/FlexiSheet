@@ -6,6 +6,11 @@ public sealed record Workspace(WorkingPattern? WorkingPattern, IReadOnlyList<Fle
 {
     public static Workspace Empty => new(null, []);
 
+    public Workspace RetainRecentPeriods(DateOnly today) => this with
+    {
+        Periods = Periods.Where(period => period.EndDate >= today.AddYears(-2)).ToArray()
+    };
+
     public void Validate()
     {
         var ordered = Periods.OrderBy(period => period.StartDate).ToArray();

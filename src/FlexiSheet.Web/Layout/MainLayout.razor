@@ -13,6 +13,7 @@
         <nav aria-label="Main navigation">
             <NavLink href="" Match="NavLinkMatch.All">Flexi periods</NavLink>
             <NavLink href="settings">Working pattern</NavLink>
+            <NavLink href="backup">Backup and restore</NavLink>
         </nav>
     </div>
 </header>
@@ -22,11 +23,12 @@
         {
             <p class="govuk-body" role="status">Loading your flexi periods...</p>
         }
-        else if (State.Current is null)
+        else if (State.Current is null && !IsBackupPage)
         {
             <h1 class="govuk-heading-xl">Your data could not be opened</h1>
             <Messages Error="@State.Error" Success="@State.Success" />
             <p class="govuk-body">Your existing data has not been replaced. Do not clear browser data if you need to keep your records.</p>
+            <p class="govuk-body"><a class="govuk-link" href="backup">Restore a backup</a> if you have a saved copy.</p>
             <button class="govuk-button" @onclick="InitializeAsync">Try again</button>
         }
         else
@@ -36,7 +38,7 @@
     </main>
     <footer class="service-footer">
         <p class="govuk-body-s">FlexiSheet is not a government service. Data stays in this browser on this device.</p>
-        <p class="govuk-body-s">Clearing browser data deletes your records. Backup and restore are not available in this first release.</p>
+        <p class="govuk-body-s">Clearing browser data deletes your records. <a class="govuk-link" href="backup">Back up your data</a> regularly.</p>
         @if (persistenceNotice is not null)
         {
             <p class="govuk-body-s" role="status">@persistenceNotice</p>
@@ -48,6 +50,7 @@
     private bool loading = true;
     private string? persistenceNotice;
     private ElementReference mainContent;
+    private bool IsBackupPage => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0] == "backup";
 
     private async Task FocusMainAsync() => await mainContent.FocusAsync();
 
