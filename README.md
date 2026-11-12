@@ -79,9 +79,7 @@ Open the localhost URL printed by .NET. Rebuild CSS after changing the Sass sour
 The generated CSS is committed so running or publishing with .NET alone also works.
 Only the required GOV.UK Frontend styles are compiled, with system fonts and without
 Crown logos, GDS Transport, font files, or other branding assets. Its MIT licence notice
-is distributed with the static app as `govuk-frontend-LICENSE.txt` and retains its
-original third-party copyright notice. FlexiSheet is copyright (c) 2026 Scott Dawson;
-its own MIT licence is distributed separately as `LICENSE.txt`.
+is distributed with the static app; this does not claim Crown copyright over FlexiSheet.
 
 ## Validate and publish
 

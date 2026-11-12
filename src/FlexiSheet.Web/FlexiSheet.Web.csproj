@@ -13,10 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\LICENSE" Link="wwwroot\LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\FlexiSheet.Application\FlexiSheet.Application.csproj" />
     <ProjectReference Include="..\FlexiSheet.Infrastructure\FlexiSheet.Infrastructure.csproj" />
   </ItemGroup>
