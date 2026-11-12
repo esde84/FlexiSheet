@@ -1,0 +1,182 @@
+@page "/"
+@inject WorkspaceState State
+@inject FlexiSheet.Application.StartFlexiPeriod.Handler StartPeriod
+@inject FlexiSheet.Application.AdjustFlexiPeriod.Handler AdjustPeriod
+@inject FlexiSheet.Application.DownloadFlexiPeriod.Handler DownloadPeriod
+@inject FlexiSheet.Application.EmailFlexiPeriod.Handler EmailPeriod
+@inject TimeProvider Clock
+
+<PageTitle>Flexi periods - FlexiSheet</PageTitle>
+<h1 class="govuk-heading-xl">Flexi periods</h1>
+<p class="govuk-body">Record your work and compare it with the hours you expect to work each day.</p>
+<p class="govuk-inset-text">Carry-over is copied when a period is created and stays fixed unless you edit it. Keep a <a class="govuk-link" href="backup">backup of your records</a> before clearing browser data.</p>
+<Messages Error="@State.Error" Success="@State.Success" />
+
+@if (State.Current!.WorkingPattern is null)
+{
+    <p class="govuk-body"><a class="govuk-link" href="settings">Set your normal four-week working pattern</a> before starting your first flexi period.</p>
+}
+else
+{
+    <section aria-labelledby="start-heading">
+        <h2 class="govuk-heading-l" id="start-heading">Start a flexi period</h2>
+        <form @onsubmit="StartAsync" @onsubmit:preventDefault>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="start-date">Starting Monday</label>
+                <p class="govuk-hint" id="start-hint">The period will contain 28 days. It must not overlap an existing period.</p>
+                <input class="govuk-input date-input" type="date" id="start-date" @bind="startDate" aria-describedby="start-hint" required />
+            </div>
+            @if (PreviousPeriod is { } previous)
+            {
+                <div class="govuk-form-group">
+                    <div class="govuk-checkboxes">
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" type="checkbox" id="calculate-carry" @bind="useCalculatedCarryOver" aria-describedby="calculated-hint" />
+                            <label class="govuk-label govuk-checkboxes__label" for="calculate-carry">Use the previous period's balance</label>
+                        </div>
+                    </div>
+                    <p class="govuk-hint" id="calculated-hint">Current previous balance: @DurationText.Format(previous.Balance). This copies the balance based on work recorded so far, not a forecast. Later edits to the previous period will not change this carry-over.</p>
+                </div>
+            }
+            @if (PreviousPeriod is null || !useCalculatedCarryOver)
+            {
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="carry-over">Carry-over</label>
+                    <p class="govuk-hint" id="carry-hint">Enter hours:minutes, for example 7:30, -2:15 or 0:00. No carry-over cap is applied. Without an immediately preceding period, enter your starting balance manually.</p>
+                    <input class="govuk-input govuk-input--width-10" id="carry-over" @bind="carryOver" aria-describedby="carry-hint" required />
+                </div>
+            }
+            <button class="govuk-button" disabled="@busy" type="submit">Start period</button>
+        </form>
+    </section>
+}
+
+<section aria-labelledby="periods-heading">
+    <h2 class="govuk-heading-l" id="periods-heading">Saved periods</h2>
+    <p class="govuk-hint">After a period's end date has passed, you can download its JSON file or email a summary. Email downloads the file first; attach it to the message yourself. If no email app opens, compose the message in your usual app.</p>
+    @if (State.Current.Periods.Count == 0)
+    {
+        <p class="govuk-body">You have no saved periods.</p>
+    }
+    else
+    {
+        <ul class="govuk-list period-list">
+            @foreach (var period in State.Current.Periods.OrderByDescending(period => period.StartDate))
+            {
+                <li>
+                    <button class="link-button" @onclick="() => Select(period)">
+                        @period.StartDate.ToString("d MMM yyyy") to @period.EndDate.ToString("d MMM yyyy")
+                    </button>
+                    <p class="govuk-body-s">Expected: @DurationText.Format(period.TotalExpectedTime) | Carry-over: @DurationText.Format(period.CarryOver)</p>
+                    <p class="govuk-body-s">Worked: @DurationText.Format(period.TotalWorkedTime) | Balance: @DurationText.Format(period.Balance)</p>
+                    @if (period.EndDate < DateOnly.FromDateTime(Clock.GetLocalNow().DateTime))
+                    {
+                        <div class="share-actions">
+                            <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy"
+                                    aria-label="@($"Download period starting {period.StartDate:d MMM yyyy}")"
+                                    @onclick="() => DownloadAsync(period.Id)">Download JSON</button>
+                            <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy"
+                                    aria-label="@($"Email period starting {period.StartDate:d MMM yyyy}")"
+                                    @onclick="() => EmailAsync(period.Id)">Email</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@if (SelectedPeriod is { } selectedPeriod)
+{
+    <PeriodWork @key="selectedPeriod.Id" Period="selectedPeriod" OnChanged="RefreshWork" />
+    <section aria-labelledby="adjust-heading">
+        <h2 class="govuk-heading-l" id="adjust-heading">Adjust this period</h2>
+        <p class="govuk-hint" id="period-hint">Enter hours:minutes for each day, from 0:00 to 24:00. These changes do not alter your normal working pattern.</p>
+        <form @onsubmit="AdjustAsync" @onsubmit:preventDefault>
+            <ExpectedTimeFields Values="expectedTime" IdPrefix="period" StartDate="selectedStart" />
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="adjust-carry">Carry-over for this period</label>
+                <p class="govuk-hint" id="adjust-carry-hint">Hours:minutes; use a minus sign for a negative balance. This overrides the starting balance for this period only, without changing later periods.</p>
+                <input class="govuk-input govuk-input--width-10" id="adjust-carry" @bind="adjustCarryOver" aria-describedby="adjust-carry-hint" required />
+            </div>
+            <button class="govuk-button" disabled="@busy" type="submit">Save period changes</button>
+        </form>
+    </section>
+}
+
+@code {
+    private DateTime startDate;
+    private string carryOver = "0:00";
+    private bool useCalculatedCarryOver = true;
+    private bool busy;
+    private Guid? selectedId;
+    private DateOnly selectedStart;
+    private string[] expectedTime = [];
+    private string adjustCarryOver = "0:00";
+    private FlexiPeriod? PreviousPeriod => State.Current!.Periods.SingleOrDefault(period =>
+        period.EndDate.DayNumber == DateOnly.FromDateTime(startDate).DayNumber - 1);
+    private FlexiPeriod? SelectedPeriod => State.Current!.Periods.SingleOrDefault(period => period.Id == selectedId);
+
+    private void RefreshWork() => StateHasChanged();
+
+    private async Task DownloadAsync(Guid periodId)
+    {
+        if (busy) return;
+        busy = true;
+        await State.PerformAsync(() => DownloadPeriod.HandleAsync(new(periodId)),
+            "Check your downloads for the period JSON file.");
+        busy = false;
+    }
+
+    private async Task EmailAsync(Guid periodId)
+    {
+        if (busy) return;
+        busy = true;
+        await State.PerformAsync(() => EmailPeriod.HandleAsync(new(periodId)),
+            "Check your downloads, then attach the period file to the draft before sending. If no email app opens, compose the message in your usual app.");
+        busy = false;
+    }
+
+    protected override void OnInitialized()
+    {
+        State.ClearMessages();
+        var today = Clock.GetLocalNow().Date;
+        startDate = today.AddDays(-((7 + (int)today.DayOfWeek - (int)DayOfWeek.Monday) % 7));
+    }
+
+    private async Task StartAsync()
+    {
+        if (busy) return;
+        busy = true;
+        var oldIds = State.Current!.Periods.Select(period => period.Id).ToHashSet();
+        var saved = await State.ExecuteAsync(() => StartPeriod.HandleAsync(new(
+            DateOnly.FromDateTime(startDate), PreviousPeriod is not null && useCalculatedCarryOver
+                ? null : DurationText.Parse(carryOver, allowNegative: true))),
+            "Your flexi period has been saved in this browser.");
+        if (saved)
+            Select(State.Current!.Periods.Single(period => !oldIds.Contains(period.Id)), clearMessages: false);
+        busy = false;
+    }
+
+    private void Select(FlexiPeriod period) => Select(period, clearMessages: true);
+
+    private void Select(FlexiPeriod period, bool clearMessages)
+    {
+        if (clearMessages) State.ClearMessages();
+        selectedId = period.Id;
+        selectedStart = period.StartDate;
+        expectedTime = period.ExpectedTime.Select(DurationText.Format).ToArray();
+        adjustCarryOver = DurationText.Format(period.CarryOver);
+    }
+
+    private async Task AdjustAsync()
+    {
+        if (busy || selectedId is null) return;
+        busy = true;
+        await State.ExecuteAsync(() => AdjustPeriod.HandleAsync(new(
+            selectedId.Value, expectedTime.Select(value => DurationText.Parse(value)).ToArray(),
+            DurationText.Parse(adjustCarryOver, allowNegative: true))),
+            "Your period changes have been saved. Your normal working pattern has not changed.");
+        busy = false;
+    }
+}

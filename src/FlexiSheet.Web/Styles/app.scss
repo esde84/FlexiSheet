@@ -1,0 +1,42 @@
+@use "govuk-frontend/dist/govuk/base" with (
+  $govuk-font-family: (Arial, Helvetica, sans-serif),
+  $govuk-include-default-font-face: false,
+  $govuk-global-styles: true
+);
+@use "govuk-frontend/dist/govuk/core";
+@use "govuk-frontend/dist/govuk/objects";
+@use "govuk-frontend/dist/govuk/components/button";
+@use "govuk-frontend/dist/govuk/components/checkboxes";
+@use "govuk-frontend/dist/govuk/components/error-summary";
+@use "govuk-frontend/dist/govuk/components/fieldset";
+@use "govuk-frontend/dist/govuk/components/file-upload";
+@use "govuk-frontend/dist/govuk/components/input";
+@use "govuk-frontend/dist/govuk/components/inset-text";
+@use "govuk-frontend/dist/govuk/components/label";
+@use "govuk-frontend/dist/govuk/components/notification-banner";
+@use "govuk-frontend/dist/govuk/components/skip-link";
+@use "govuk-frontend/dist/govuk/components/table";
+@use "govuk-frontend/dist/govuk/components/warning-text";
+@use "govuk-frontend/dist/govuk/utilities";
+
+body { margin: 0; }
+.service-header { background: #0b0c0c; padding: 20px 0; border-bottom: 5px solid #1d70b8; }
+.service-name, .service-name:visited { color: white; font: bold 30px Arial, sans-serif; text-decoration: none; }
+.service-header nav { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+.service-header nav a { color: white; font-size: 19px; }
+.service-header a:focus { color: #0b0c0c; background: #ffdd00; outline: 3px solid #ffdd00; }
+.service-footer { border-top: 1px solid #b1b4b6; padding: 25px 0; }
+.day-fields { display: flex; flex-wrap: wrap; gap: 20px; }
+.day-fields > div { min-width: 100px; }
+.day-date { display: block; font-size: 16px; }
+.pattern-week { margin-bottom: 20px; }
+.date-input { max-width: 220px; }
+.period-list li { border-bottom: 1px solid #b1b4b6; padding: 12px 0; }
+.session-list li { border-bottom: 1px solid #b1b4b6; padding: 12px 0; }
+.session-list .link-button { margin-left: 15px; }
+.table-scroll { overflow-x: auto; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 15px; }
+.link-button { background: none; border: 0; padding: 0; color: #1d70b8; text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
+.link-button:focus { background: #ffdd00; color: #0b0c0c; outline: 3px solid #ffdd00; }
+.loading-message { margin: 30px; }
+#blazor-error-ui { display: none; background: #f3f2f1; border-top: 4px solid #d4351c; padding: 20px; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; }

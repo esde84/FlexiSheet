@@ -1,0 +1,37 @@
+@page "/settings"
+@inject WorkspaceState State
+@inject FlexiSheet.Application.SaveWorkingPattern.Handler SavePattern
+
+<PageTitle>Working pattern - FlexiSheet</PageTitle>
+<h1 class="govuk-heading-xl">Normal four-week working pattern</h1>
+<p class="govuk-body">Set the hours you expect to work on each day of a normal four-week period, starting on a Monday. New flexi periods will copy this pattern.</p>
+<p class="govuk-body">Saving a new pattern does not change existing periods. You can adjust individual days within each period.</p>
+<Messages Error="@State.Error" Success="@State.Success" />
+<p class="govuk-hint" id="pattern-hint">Enter hours:minutes, for example 7:30. Use 0:00 for non-working days. Each day can be from 0:00 to 24:00.</p>
+<form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+    <ExpectedTimeFields Values="expectedTime" IdPrefix="pattern" />
+    <button class="govuk-button" disabled="@busy" type="submit">Save working pattern</button>
+</form>
+<p class="govuk-body"><a class="govuk-link" href="">Return to flexi periods</a></p>
+
+@code {
+    private string[] expectedTime = [];
+    private bool busy;
+
+    protected override void OnInitialized()
+    {
+        State.ClearMessages();
+        expectedTime = State.Current!.WorkingPattern?.ExpectedTime.Select(DurationText.Format).ToArray()
+            ?? Enumerable.Repeat("0:00", WorkingPattern.DaysPerPeriod).ToArray();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (busy) return;
+        busy = true;
+        await State.ExecuteAsync(() => SavePattern.HandleAsync(new(
+            expectedTime.Select(value => DurationText.Parse(value)).ToArray())),
+            "Your normal working pattern has been saved. Existing periods have not changed.");
+        busy = false;
+    }
+}

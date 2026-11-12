@@ -1,0 +1,107 @@
+@page "/backup"
+@using System.Text
+@using FlexiSheet.Application.Abstractions
+@inject WorkspaceState State
+@inject FlexiSheet.Application.ExportBackup.Handler ExportBackup
+@inject FlexiSheet.Application.PrepareRestore.Handler PrepareRestore
+@inject FlexiSheet.Application.RestoreBackup.Handler RestoreBackup
+
+<PageTitle>Backup and restore - FlexiSheet</PageTitle>
+<h1 class="govuk-heading-xl">Backup and restore</h1>
+<Messages Error="@State.Error" Success="@State.Success" />
+<p class="govuk-body">Keep a JSON backup somewhere safe. Browser data can be cleared or removed, and a backup lets you move your records to another browser or device.</p>
+
+<section aria-labelledby="download-backup-heading">
+    <h2 class="govuk-heading-l" id="download-backup-heading">Download a backup</h2>
+    <p class="govuk-body">The file includes your normal working pattern and all retained periods, including sessions, expected time and carry-over.</p>
+    <button class="govuk-button" type="button" disabled="@(busy || State.Current is null)" @onclick="DownloadAsync">Download backup</button>
+    @if (State.Current is null)
+    {
+        <p class="govuk-body">Existing browser data could not be read, so it cannot be exported as a validated backup. A confirmed restore will replace that unreadable data.</p>
+    }
+</section>
+
+<section aria-labelledby="restore-heading">
+    <h2 class="govuk-heading-l" id="restore-heading">Restore from a JSON file</h2>
+    <p class="govuk-body">Choose a FlexiSheet backup or an individual period file. It is checked before any browser data is changed.</p>
+    <p class="govuk-inset-text">Restore replaces all current periods and your normal working pattern. It does not merge records. Periods ending more than two years ago will not be restored.</p>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="backup-file">Choose a JSON file</label>
+        <InputFile @key="fileInputVersion" class="govuk-file-upload" id="backup-file" OnChange="ReadFileAsync" accept=".json,application/json" disabled="@busy" />
+    </div>
+    @if (preview is not null)
+    {
+        <div class="govuk-warning-text">
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text"><span class="govuk-visually-hidden">Warning</span>Confirm replacement of your existing data</strong>
+        </div>
+        <p class="govuk-body">Selected file: @fileName</p>
+        <p class="govuk-body" role="status" data-testid="restore-preview">Retained periods to restore: @preview.RetainedPeriods. Expired periods excluded: @preview.ExpiredPeriods.</p>
+        <p class="govuk-body">@(preview.HasWorkingPattern ? "The file's normal working pattern will replace your current pattern." : "This file has no normal working pattern. Your current pattern will be removed; configure a pattern again before creating new periods.")</p>
+        <button class="govuk-button govuk-button--warning" type="button" disabled="@busy" @onclick="ConfirmAsync">Replace existing data</button>
+        <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy" @onclick="Cancel">Cancel restore</button>
+    }
+</section>
+<p class="govuk-body"><a class="govuk-link" href="">Return to flexi periods</a></p>
+
+@code {
+    private FlexiSheet.Application.PrepareRestore.Preview? preview;
+    private string? fileName;
+    private bool busy;
+    private int fileInputVersion;
+
+    protected override void OnInitialized() => State.ClearMessages();
+
+    private async Task DownloadAsync()
+    {
+        if (busy) return;
+        busy = true;
+        await State.PerformAsync(ExportBackup.HandleAsync,
+            "Check your downloads for the backup JSON file. Keep a copy somewhere safe.");
+        busy = false;
+    }
+
+    private async Task ReadFileAsync(InputFileChangeEventArgs args)
+    {
+        if (busy) return;
+        busy = true;
+        preview = null;
+        fileName = args.File.Name;
+        await State.PerformAsync(async () =>
+        {
+            string json;
+            try
+            {
+                await using var stream = args.File.OpenReadStream(maxAllowedSize: args.File.Size);
+                using var reader = new StreamReader(stream, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true);
+                json = await reader.ReadToEndAsync();
+            }
+            catch (Exception exception) when (exception is IOException or JSException or DecoderFallbackException)
+            {
+                throw new WorkspaceStorageException("The selected file could not be read. Choose it again. Existing browser data has not been changed.", exception);
+            }
+            preview = PrepareRestore.Handle(new(json));
+        });
+        busy = false;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (busy || preview is null) return;
+        busy = true;
+        if (await State.ExecuteAsync(() => RestoreBackup.HandleAsync(new(preview.Json, Confirmed: true)),
+            "Your backup has been restored. Expired periods were excluded."))
+        {
+            preview = null;
+            fileInputVersion++;
+        }
+        busy = false;
+    }
+
+    private void Cancel()
+    {
+        preview = null;
+        fileInputVersion++;
+        State.ClearMessages();
+    }
+}

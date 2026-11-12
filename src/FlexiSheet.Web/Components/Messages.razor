@@ -1,0 +1,32 @@
+@if (Error is not null)
+{
+    <div class="govuk-error-summary" role="alert" tabindex="-1" @ref="errorSummary">
+        <h2 class="govuk-error-summary__title">There is a problem</h2>
+        <p class="govuk-body">@Error</p>
+    </div>
+}
+@if (Success is not null)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="status">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-body">@Success</p>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string? Success { get; set; }
+    private ElementReference errorSummary;
+    private string? previousError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Error is not null && Error != previousError)
+            await errorSummary.FocusAsync();
+        previousError = Error;
+    }
+}

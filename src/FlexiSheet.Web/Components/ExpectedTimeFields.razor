@@ -1,0 +1,32 @@
+@for (var week = 0; week < 4; week++)
+{
+    var weekNumber = week + 1;
+    <fieldset class="govuk-fieldset pattern-week" aria-describedby="@($"{IdPrefix}-hint")">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Week @weekNumber</legend>
+        <div class="day-fields">
+            @for (var weekday = 0; weekday < 7; weekday++)
+            {
+                var index = week * 7 + weekday;
+                var id = $"{IdPrefix}-{index}";
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="@id">
+                        @DayNames[weekday]
+                        @if (StartDate is not null)
+                        {
+                            <span class="govuk-hint day-date">@StartDate.Value.AddDays(index).ToString("d MMM yyyy")</span>
+                        }
+                    </label>
+                    <input class="govuk-input govuk-input--width-5" id="@id" type="text"
+                           value="@Values[index]" @onchange="eventArgs => Values[index] = eventArgs.Value?.ToString() ?? string.Empty" />
+                </div>
+            }
+        </div>
+    </fieldset>
+}
+
+@code {
+    [Parameter, EditorRequired] public string[] Values { get; set; } = [];
+    [Parameter, EditorRequired] public string IdPrefix { get; set; } = string.Empty;
+    [Parameter] public DateOnly? StartDate { get; set; }
+    private static readonly string[] DayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+}

@@ -1,0 +1,13 @@
+{
+  "name": "flexisheet",
+  "private": true,
+  "scripts": {
+    "build:css": "sass --no-source-map --style=compressed --load-path=node_modules src/FlexiSheet.Web/Styles/app.scss src/FlexiSheet.Web/wwwroot/css/app.css",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "govuk-frontend": "6.6.0",
+    "sass": "1.108.2"
+  }
+}

@@ -1,0 +1,11 @@
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+    testDir: "./tests/browser",
+    use: { baseURL: "http://127.0.0.1:5187/FlexiSheet/", browserName: "chromium" },
+    webServer: {
+        command: "node tests/browser/serve.mjs",
+        url: "http://127.0.0.1:5187/FlexiSheet/",
+        reuseExistingServer: false
+    }
+});
