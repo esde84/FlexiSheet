@@ -1,6 +1,6 @@
 # 0009. Download and email completed flexi periods
 
-- Status: Accepted
+- Status: Superseded by [ADR-0011](0011-download-any-flexi-period.md)
 - Date: 2026-11-12
 
 ## Context
