@@ -21,5 +21,6 @@ This directory captures the significant architectural and product decisions made
 | [0006](0006-store-data-in-the-browser-with-json-download.md) | Store data in the browser with JSON download | Accepted |
 | [0007](0007-flexi-time-domain-model.md) | Flexi time domain model | Accepted |
 | [0008](0008-retention-backup-and-restore.md) | Two year retention, backup and restore | Accepted |
-| [0009](0009-share-completed-flexi-periods.md) | Download and email completed flexi periods | Accepted |
+| [0009](0009-share-completed-flexi-periods.md) | Download and email completed flexi periods | Superseded by [0011](0011-download-any-flexi-period.md) |
 | [0010](0010-record-sessions-and-snapshot-carry-over.md) | Record non-overlapping sessions and snapshot carry-over | Accepted |
+| [0011](0011-download-any-flexi-period.md) | Download any flexi period | Accepted |

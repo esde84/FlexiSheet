@@ -61,6 +61,22 @@ test("backup downloads all retained data with its schema and working pattern", a
     expect(backup).toEqual(saved);
 });
 
+test("active period downloads as a standalone JSON file", async ({ page }) => {
+    await startFirstPeriod(page);
+    await expect(page.getByRole("button", { name: "Download period starting 2 Nov 2026" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Email period starting 2 Nov 2026" })).toHaveCount(0);
+
+    const promised = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download period starting 2 Nov 2026" }).click();
+    const download = await promised;
+    expect(download.suggestedFilename()).toBe("flexisheet-period-2026-11-02.json");
+    const exported = await downloadedJson(download);
+    expect(exported.schemaVersion).toBe(2);
+    expect(exported.workingPattern).toBeNull();
+    expect(exported.periods).toHaveLength(1);
+    expect(exported.periods[0].startDate).toBe("2026-11-02");
+});
+
 test("invalid files and cancellation preserve data; confirmed restore replaces and purges", async ({ page }) => {
     await startFirstPeriod(page);
     const original = await page.evaluate(key => localStorage.getItem(key), key);
@@ -105,7 +121,7 @@ test("completed-period email downloads only that period before opening a manual-
     await page.getByLabel("Carry-over", { exact: true }).fill("-2:00");
     await page.getByRole("button", { name: "Start period", exact: true }).click();
     await recordSession(page, "23:00", "24:00");
-    await expect(page.getByRole("button", { name: "Download period starting 2 Nov 2026" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Download period starting 2 Nov 2026" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Email period starting 2 Nov 2026" })).toHaveCount(0);
 
     await page.evaluate(() => {

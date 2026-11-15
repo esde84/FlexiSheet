@@ -52,9 +52,10 @@ Changing data in another tab invalidates a pending confirmation instead of silen
 overwriting the newer data. A confirmed restore can also recover unreadable browser data;
 the original document is not changed just by opening the app or inspecting a file.
 
-A period becomes shareable on the day **after** its end date, in local time.
-**Download JSON** exports only that period. **Email** first downloads the same file, then
-requests a `mailto:` draft containing the dates, worked/expected time, carry-over and balance.
+Any saved period can be downloaded as a JSON file, whether it has ended or is still in
+progress. The **Email** option becomes available on the day **after** the period's end date,
+in local time. It first downloads the same file, then requests a `mailto:` draft containing
+the dates, worked/expected time, carry-over and balance.
 The draft asks you to attach the downloaded JSON file manually. The app cannot attach files,
 detect whether an email client opened, or send the message. If no email app opens, compose
 the message in your usual app and attach the downloaded file.

@@ -53,7 +53,7 @@ else
 
 <section aria-labelledby="periods-heading">
     <h2 class="govuk-heading-l" id="periods-heading">Saved periods</h2>
-    <p class="govuk-hint">After a period's end date has passed, you can download its JSON file or email a summary. Email downloads the file first; attach it to the message yourself. If no email app opens, compose the message in your usual app.</p>
+    <p class="govuk-hint">Download any saved period as a JSON file. After a period's end date has passed, you can also email a summary. Email downloads the file first; attach it to the message yourself. If no email app opens, compose the message in your usual app.</p>
     @if (State.Current.Periods.Count == 0)
     {
         <p class="govuk-body">You have no saved periods.</p>
@@ -69,17 +69,17 @@ else
                     </button>
                     <p class="govuk-body-s">Expected: @DurationText.Format(period.TotalExpectedTime) | Carry-over: @DurationText.Format(period.CarryOver)</p>
                     <p class="govuk-body-s">Worked: @DurationText.Format(period.TotalWorkedTime) | Balance: @DurationText.Format(period.Balance)</p>
-                    @if (period.EndDate < DateOnly.FromDateTime(Clock.GetLocalNow().DateTime))
-                    {
-                        <div class="share-actions">
-                            <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy"
-                                    aria-label="@($"Download period starting {period.StartDate:d MMM yyyy}")"
-                                    @onclick="() => DownloadAsync(period.Id)">Download JSON</button>
+                    <div class="share-actions">
+                        <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy"
+                                aria-label="@($"Download period starting {period.StartDate:d MMM yyyy}")"
+                                @onclick="() => DownloadAsync(period.Id)">Download JSON</button>
+                        @if (period.EndDate < DateOnly.FromDateTime(Clock.GetLocalNow().DateTime))
+                        {
                             <button class="govuk-button govuk-button--secondary" type="button" disabled="@busy"
                                     aria-label="@($"Email period starting {period.StartDate:d MMM yyyy}")"
                                     @onclick="() => EmailAsync(period.Id)">Email</button>
-                        </div>
-                    }
+                        }
+                    </div>
                 </li>
             }
         </ul>
