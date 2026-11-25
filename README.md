@@ -123,3 +123,7 @@ The clarified recording and carry-over rules are recorded in [ADR-0010](docs/adr
 ## Decisions
 
 Architecture and product decisions are recorded in [`docs/adr`](docs/adr/README.md).
+
+## Extra section
+
+Added to test some process functionality
